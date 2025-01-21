@@ -78,27 +78,28 @@ jobs:
     - name: Build for current platform
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      shell: pwsh
       run: |
-        if [ "${{ runner.os }}" == "Linux" ]; then
+        if ("${{ runner.os }}" -eq "Linux") {
           npm run dist -- --linux deb rpm AppImage
-        elif [ "${{ runner.os }}" == "macOS" ]; then
+        } elseif ("${{ runner.os }}" -eq "macOS") {
           npm run dist -- --mac dmg
-        else
+        } else {
           npm run dist -- --win msi
-        fi
+        }
     - name: List dist directory
       run: ls -R dist
     - name: Find artifact
       id: find_artifact
-      shell: bash
+      shell: pwsh
       run: |
-        ARTIFACT=$(find dist -name "${{ matrix.artifact_name }}" -print -quit)
-        if [ -n "$ARTIFACT" ]; then
-          echo "ARTIFACT_PATH=$ARTIFACT" >> $GITHUB_OUTPUT
-          echo "ARTIFACT_FOUND=true" >> $GITHUB_OUTPUT
-        else
-          echo "ARTIFACT_FOUND=false" >> $GITHUB_OUTPUT
-        fi
+        $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter "${{ matrix.artifact_name }}" | Select-Object -First 1 -ExpandProperty FullName
+        if ($ARTIFACT) {
+          echo "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
+          echo "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
+        } else {
+          echo "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
+        }
     - name: Upload Release Asset
       if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
       uses: actions/upload-release-asset@v1

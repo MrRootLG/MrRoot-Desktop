@@ -79,14 +79,19 @@ jobs:
       run: ls -R dist
     - name: Find artifact
       id: find_artifact
+      shell: pwsh
       run: |
-        ARTIFACT=$(find dist -name "${{ matrix.artifact_name }}" -print -quit)
-        if [ -n "$ARTIFACT" ]; then
-          echo "ARTIFACT_PATH=$ARTIFACT" >> $GITHUB_OUTPUT
-          echo "ARTIFACT_FOUND=true" >> $GITHUB_OUTPUT
-        else
-          echo "ARTIFACT_FOUND=false" >> $GITHUB_OUTPUT
-        fi
+        if ("${{ runner.os }}" -eq "Windows") {
+          $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter "${{ matrix.artifact_name }}" | Select-Object -First 1 -ExpandProperty FullName
+        } else {
+          $ARTIFACT = bash -c "find dist -name '${{ matrix.artifact_name }}' -print -quit"
+        }
+        if ($ARTIFACT) {
+          echo "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
+          echo "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
+        } else {
+          echo "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
+        }
     - name: Upload Release Asset
       if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
       uses: actions/upload-release-asset@v1
@@ -99,15 +104,10 @@ jobs:
         asset_content_type: application/octet-stream
     - name: Upload Release Asset (Fallback)
       if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'false'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      uses: actions/upload-artifact@v4
       with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./dist/${{ matrix.artifact_name }}
-        asset_name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
-        asset_content_type: application/octet-stream
-      continue-on-error: true
+        name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}
+        path: dist
 
   update_release:
     needs: [create_release, build]

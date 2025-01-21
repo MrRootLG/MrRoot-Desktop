@@ -93,14 +93,20 @@ jobs:
       id: find_artifact
       shell: pwsh
       run: |
+        Write-Host "Searching for artifact: ${{ matrix.artifact_name }}"
         $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter "${{ matrix.artifact_name }}" | Select-Object -First 1 -ExpandProperty FullName
         if ($ARTIFACT) {
+          Write-Host "Artifact found: $ARTIFACT"
           echo "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
           echo "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
         } else {
+          Write-Host "Artifact not found: ${{ matrix.artifact_name }}"
           echo "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
         }
+        Write-Host "Contents of dist directory:"
+        Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
     - name: Upload Release Asset
+      id: upload_asset
       if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
       uses: actions/upload-release-asset@v1
       env:
@@ -111,12 +117,38 @@ jobs:
         asset_name: ${{ matrix.asset_name }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
         asset_content_type: application/octet-stream
 
+    - name: Check Upload Status
+      if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
+      shell: pwsh
+      run: |
+        if (${{ steps.upload_asset.outcome == 'success' }}) {
+          Write-Host "Asset uploaded successfully: ${{ matrix.asset_name }}"
+        } else {
+          Write-Host "Failed to upload asset: ${{ matrix.asset_name }}"
+          exit 1
+        }
+
   update_release:
     needs: [create_release, build]
     if: success()
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: List Release Assets
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GH_TOKEN }}
+        script: |
+          const releaseId = '${{ needs.create_release.outputs.release_id }}';
+          const { data: assets } = await github.rest.repos.listReleaseAssets({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            release_id: releaseId
+          });
+          console.log('Release Assets:');
+          assets.forEach(asset => {
+            console.log(`- ${asset.name} (${asset.size} bytes)`);
+          });
     - name: Update Release
       uses: actions/github-script@v7
       with:
@@ -136,6 +168,7 @@ jobs:
             release_id: releaseId,
             body: body
           });
+
 
 
   delete_release_on_failure:

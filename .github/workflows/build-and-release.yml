@@ -75,7 +75,30 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: npm run dist
+    - name: List dist directory
+      run: ls -R dist
+    - name: Find artifact
+      id: find_artifact
+      run: |
+        ARTIFACT=$(find dist -name "${{ matrix.artifact_name }}" -print -quit)
+        if [ -n "$ARTIFACT" ]; then
+          echo "ARTIFACT_PATH=$ARTIFACT" >> $GITHUB_OUTPUT
+          echo "ARTIFACT_FOUND=true" >> $GITHUB_OUTPUT
+        else
+          echo "ARTIFACT_FOUND=false" >> $GITHUB_OUTPUT
+        fi
     - name: Upload Release Asset
+      if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.find_artifact.outputs.ARTIFACT_PATH }}
+        asset_name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
+        asset_content_type: application/octet-stream
+    - name: Upload Release Asset (Fallback)
+      if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'false'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -84,6 +107,7 @@ jobs:
         asset_path: ./dist/${{ matrix.artifact_name }}
         asset_name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
         asset_content_type: application/octet-stream
+      continue-on-error: true
 
   update_release:
     needs: [create_release, build]

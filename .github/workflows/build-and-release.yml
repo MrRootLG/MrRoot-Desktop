@@ -1,5 +1,5 @@
 name: Build and Release Desktop App
-
+run-name: "${{ github.event.inputs.version != '' && format('Release {0}', github.event.inputs.version) || format('Snapshot {0}', github.sha) }}"
 on:
   workflow_dispatch:
     inputs:
@@ -7,10 +7,41 @@ on:
         description: 'Version number for this release'
         required: true
 
+env:
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  create_release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Generate Release Notes
+      id: generate_notes
+      uses: release-drafter/release-drafter@v6
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      with:
+        config-name: release-drafter.yml
+        version: ${{ github.event.inputs.version }}
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        release_name: v${{ github.event.inputs.version }}
+        body: ${{ steps.generate_notes.outputs.body }}
+        draft: false
+        prerelease: false
 
+  build:
+    needs: create_release
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
@@ -39,64 +70,53 @@ jobs:
             asset_name: 'Windows-MSI'
 
     steps:
-    - uses: actions/checkout@v3
-
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-
     - name: Install dependencies
       run: npm ci
-
     - name: Build for current platform
-      env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: npm run dist
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
-        name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}
-        path: dist/${{ matrix.artifact_name }}
-        retention-days: 5
-        if-no-files-found: error
-        compression-level: 9
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: ./dist/${{ matrix.artifact_name }}
+        asset_name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
+        asset_content_type: application/octet-stream
 
-
-  release:
-    needs: build
+  finalize_release:
+    needs: [create_release, build]
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-
     steps:
-    - uses: actions/checkout@v3
-
-    - name: Download all artifacts
-      uses: actions/download-artifact@v3
-
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+    - uses: actions/checkout@v4
+    - name: Update Release
+      uses: actions/github-script@v7
       with:
-        tag_name: v${{ github.event.inputs.version }}
-        release_name: Desktop App Release ${{ github.event.inputs.version }}
-        draft: false
-        prerelease: false
+        github-token: ${{ secrets.GH_TOKEN }}
+        script: |
+          const releaseId = '${{ needs.create_release.outputs.release_id }}';
+          const version = 'v${{ github.event.inputs.version }}';
 
-    - name: Upload Release Assets
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      with:
-        tag_name: v${{ github.event.inputs.version }}
-        files: |
-          *-DMG-node-*/*
-          *-ZIP-node-*/*
-          *-AppImage-node-*/*
-          *-DEB-node-*/*
-          *-RPM-node-*/*
-          *-EXE-node-*/*
-          *-MSI-node-*/*
+          // Fetch the current release to get the body
+          const { data: release } = await github.rest.repos.getRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            release_id: releaseId
+          });
+
+          // The release notes are already in the body, thanks to release-drafter
+          const releaseNotes = release.body;
+
+          // Update the release with any additional information if needed
+          await github.rest.repos.updateRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            release_id: releaseId,
+            body: `# ${version}\n\n${releaseNotes}\n\n## Additional Information\n\nThis release was automatically built and published using GitHub Actions.`
+          });
+

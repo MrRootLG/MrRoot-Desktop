@@ -54,15 +54,15 @@ jobs:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: npm run dist
 
-
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.asset_name }}
+        name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}
         path: dist/${{ matrix.artifact_name }}
         retention-days: 5
         if-no-files-found: error
         compression-level: 9
+
 
   release:
     needs: build
@@ -93,10 +93,10 @@ jobs:
       with:
         tag_name: v${{ github.event.inputs.version }}
         files: |
-          *-DMG/*
-          *-ZIP/*
-          *-AppImage/*
-          *-DEB/*
-          *-RPM/*
-          *-EXE/*
-          *-MSI/*
+          *-DMG-node-*/*
+          *-ZIP-node-*/*
+          *-AppImage-node-*/*
+          *-DEB-node-*/*
+          *-RPM-node-*/*
+          *-EXE-node-*/*
+          *-MSI-node-*/*

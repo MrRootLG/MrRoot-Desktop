@@ -1,0 +1,48 @@
+{
+  "name": "mrroot-app",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "npx electron .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pack": "npx electron-builder --dir",
+    "dist": "npx electron-builder",
+    "clean": "rm -rf dist build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JustablockCode/MrRoot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JustablockCode/MrRoot/issues"
+  },
+  "homepage": "https://github.com/JustablockCode/MrRoot#readme",
+  "description": "A simple Electron desktop app",
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.yourcompany.mrroot",
+    "productName": "MrRoot",
+    "mac": {
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis", "zip"]
+    },
+    "linux": {
+      "target": ["deb", "AppImage", "rpm"]
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

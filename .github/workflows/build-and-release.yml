@@ -38,60 +38,67 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-        node-version: [18.x, 20.x]
         include:
+          - os: ubuntu-latest
+            artifact_name: '*-x86_64.rpm'
+            asset_name: 'Linux-RPM-x86_64'
+          - os: ubuntu-latest
+            artifact_name: '*-aarch64.rpm'
+            asset_name: 'Linux-RPM-aarch64'
+          - os: ubuntu-latest
+            artifact_name: '*-amd64.AppImage'
+            asset_name: 'Linux-AppImage-amd64'
+          - os: ubuntu-latest
+            artifact_name: '*-arm64.AppImage'
+            asset_name: 'Linux-AppImage-arm64'
+          - os: ubuntu-latest
+            artifact_name: '*_amd64.deb'
+            asset_name: 'Linux-DEB-amd64'
+          - os: ubuntu-latest
+            artifact_name: '*_arm64.deb'
+            asset_name: 'Linux-DEB-arm64'
           - os: macos-latest
-            artifact_name: '*.dmg'
-            asset_name: 'macOS-DMG'
-          - os: macos-latest
-            artifact_name: '*.zip'
-            asset_name: 'macOS-ZIP'
-          - os: ubuntu-latest
-            artifact_name: '*.AppImage'
-            asset_name: 'Linux-AppImage'
-          - os: ubuntu-latest
-            artifact_name: '*.deb'
-            asset_name: 'Linux-DEB'
-          - os: ubuntu-latest
-            artifact_name: '*.rpm'
-            asset_name: 'Linux-RPM'
+            artifact_name: '*-universal.dmg'
+            asset_name: 'macOS-DMG-universal'
           - os: windows-latest
-            artifact_name: '*.exe'
-            asset_name: 'Windows-EXE'
+            artifact_name: '*-x64.msi'
+            asset_name: 'Windows-MSI-x64'
           - os: windows-latest
-            artifact_name: '*.msi'
-            asset_name: 'Windows-MSI'
+            artifact_name: '*-ia32.msi'
+            asset_name: 'Windows-MSI-x86'
 
     steps:
     - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '20.x'
     - name: Install dependencies
       run: npm ci
     - name: Build for current platform
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      run: npm run dist
+      run: |
+        if [ "${{ runner.os }}" == "Linux" ]; then
+          npm run dist -- --linux deb rpm AppImage
+        elif [ "${{ runner.os }}" == "macOS" ]; then
+          npm run dist -- --mac dmg
+        else
+          npm run dist -- --win msi
+        fi
     - name: List dist directory
       run: ls -R dist
     - name: Find artifact
       id: find_artifact
-      shell: pwsh
+      shell: bash
       run: |
-        if ("${{ runner.os }}" -eq "Windows") {
-          $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter "${{ matrix.artifact_name }}" | Select-Object -First 1 -ExpandProperty FullName
-        } else {
-          $ARTIFACT = bash -c "find dist -name '${{ matrix.artifact_name }}' -print -quit"
-        }
-        if ($ARTIFACT) {
-          echo "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
-          echo "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
-        } else {
-          echo "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
-        }
+        ARTIFACT=$(find dist -name "${{ matrix.artifact_name }}" -print -quit)
+        if [ -n "$ARTIFACT" ]; then
+          echo "ARTIFACT_PATH=$ARTIFACT" >> $GITHUB_OUTPUT
+          echo "ARTIFACT_FOUND=true" >> $GITHUB_OUTPUT
+        else
+          echo "ARTIFACT_FOUND=false" >> $GITHUB_OUTPUT
+        fi
     - name: Upload Release Asset
       if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
       uses: actions/upload-release-asset@v1
@@ -100,14 +107,8 @@ jobs:
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
         asset_path: ${{ steps.find_artifact.outputs.ARTIFACT_PATH }}
-        asset_name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
+        asset_name: ${{ matrix.asset_name }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
         asset_content_type: application/octet-stream
-    - name: Upload Release Asset (Fallback)
-      if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'false'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.asset_name }}-node-${{ matrix.node-version }}
-        path: dist
 
   update_release:
     needs: [create_release, build]

@@ -1,17 +1,15 @@
 name: Build and Release Desktop App
 
 on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       version:
         description: 'Version number for this release'
         required: true
-  push:
-    branches:
-      - desktop
-    paths:
-      - '**'
-      - '!.github/workflows/**'  
 
 jobs:
   build:
@@ -20,6 +18,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
+        node-version: [18.x, 20.x]
         include:
           - os: macos-latest
             artifact_name: '*.dmg'
@@ -29,14 +28,13 @@ jobs:
             artifact_name: '*.exe'
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        ref: desktop  
+    - uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
       with:
-        node-version: '16'
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
 
     - name: Install dependencies
       run: npm ci
@@ -45,7 +43,7 @@ jobs:
       run: npm run dist
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.os }}-build
         path: dist/${{ matrix.artifact_name }}
@@ -53,15 +51,13 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'  
+    if: github.event_name == 'workflow_dispatch'
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        ref: desktop  
+    - uses: actions/checkout@v3
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
 
     - name: Create Release
       id: create_release
@@ -69,7 +65,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: desktop-v${{ github.event.inputs.version }}
+        tag_name: v${{ github.event.inputs.version }}
         release_name: Desktop App Release ${{ github.event.inputs.version }}
         draft: false
         prerelease: false
@@ -79,6 +75,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: desktop-v${{ github.event.inputs.version }}
+        tag_name: v${{ github.event.inputs.version }}
         files: |
           *-build/*

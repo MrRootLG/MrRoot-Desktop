@@ -25,8 +25,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
-        config-name: release-drafter.yml
+        config-name: .github/release-drafter.yml
         version: ${{ github.event.inputs.version }}
+
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1

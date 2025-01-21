@@ -56,10 +56,13 @@ jobs:
 
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
         path: dist/${{ matrix.artifact_name }}
+        retention-days: 5
+        if-no-files-found: error
+        compression-level: 9
 
   release:
     needs: build

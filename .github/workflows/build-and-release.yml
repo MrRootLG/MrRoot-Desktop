@@ -117,17 +117,18 @@ jobs:
         asset_name: ${{ matrix.asset_name }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
         asset_content_type: application/octet-stream
 
-    - name: Check Upload Status
-      if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
+    - name: Check Artifact and Upload Status
       shell: pwsh
       run: |
-        if (${{ steps.upload_asset.outcome == 'success' }}) {
-          Write-Host "Asset uploaded successfully: ${{ matrix.asset_name }}"
-        } else {
+        if ('${{ steps.find_artifact.outputs.ARTIFACT_FOUND }}' -ne 'true') {
+          Write-Host "Artifact not found: ${{ matrix.artifact_name }}"
+          exit 1
+        }
+        if ('${{ steps.upload_asset.outcome }}' -ne 'success') {
           Write-Host "Failed to upload asset: ${{ matrix.asset_name }}"
           exit 1
         }
-
+        Write-Host "Asset uploaded successfully: ${{ matrix.asset_name }}"
   update_release:
     needs: [create_release, build]
     if: success()

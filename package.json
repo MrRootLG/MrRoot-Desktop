@@ -32,27 +32,24 @@
     "appId": "com.justablock.mrroot",
     "productName": "MrRoot",
     "mac": {
+      "icon": "icons/icon.icns",
       "target": ["dmg", "zip"]
     },
     "win": {
+      "icon": "icons/icon.ico",
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
+          "arch": ["x64", "ia32"]
         },
         {
           "target": "msi",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
+          "arch": ["x64", "ia32"]
         }
       ]
     },
     "linux": {
+      "icon": "icons/icon.png",
       "target": ["deb", "AppImage", "rpm"],
       "category": "Utility"
     },
@@ -64,5 +61,7 @@
       "allowToChangeInstallationDirectory": true
     }
   }
+
+
 
 }

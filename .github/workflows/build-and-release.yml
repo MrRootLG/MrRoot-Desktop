@@ -50,7 +50,10 @@ jobs:
       run: npm ci
 
     - name: Build for current platform
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: npm run dist
+
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
@@ -73,7 +76,7 @@ jobs:
       id: create_release
       uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         tag_name: v${{ github.event.inputs.version }}
         release_name: Desktop App Release ${{ github.event.inputs.version }}
@@ -83,7 +86,7 @@ jobs:
     - name: Upload Release Assets
       uses: softprops/action-gh-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         tag_name: v${{ github.event.inputs.version }}
         files: |

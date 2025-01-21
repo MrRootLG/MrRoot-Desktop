@@ -83,12 +83,14 @@ jobs:
         if ("${{ runner.os }}" -eq "Linux") {
           npm run dist -- --linux deb rpm AppImage
         } elseif ("${{ runner.os }}" -eq "macOS") {
-          npm run dist -- --mac dmg
+          npm run dist -- --mac dmg --arch universal
         } else {
           npm run dist -- --win msi
         }
+
     - name: List dist directory
       run: ls -R dist
+
     - name: Find artifact
       id: find_artifact
       shell: pwsh
@@ -101,10 +103,11 @@ jobs:
           echo "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
         } else {
           Write-Host "Artifact not found: ${{ matrix.artifact_name }}"
+          Write-Host "Contents of dist directory:"
+          Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
           echo "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
         }
-        Write-Host "Contents of dist directory:"
-        Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
+
     - name: Upload Release Asset
       id: upload_asset
       if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
@@ -122,6 +125,8 @@ jobs:
       run: |
         if ('${{ steps.find_artifact.outputs.ARTIFACT_FOUND }}' -ne 'true') {
           Write-Host "Artifact not found: ${{ matrix.artifact_name }}"
+          Write-Host "Contents of dist directory:"
+          Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
           exit 1
         }
         if ('${{ steps.upload_asset.outcome }}' -ne 'success') {
@@ -129,7 +134,6 @@ jobs:
           exit 1
         }
         Write-Host "Asset uploaded successfully: ${{ matrix.asset_name }}"
-  update_release:
     needs: [create_release, build]
     if: success()
     runs-on: ubuntu-latest

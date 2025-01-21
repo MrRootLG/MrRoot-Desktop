@@ -18,10 +18,25 @@ jobs:
         include:
           - os: macos-latest
             artifact_name: '*.dmg'
+            asset_name: 'macOS-DMG'
+          - os: macos-latest
+            artifact_name: '*.zip'
+            asset_name: 'macOS-ZIP'
           - os: ubuntu-latest
             artifact_name: '*.AppImage'
+            asset_name: 'Linux-AppImage'
+          - os: ubuntu-latest
+            artifact_name: '*.deb'
+            asset_name: 'Linux-DEB'
+          - os: ubuntu-latest
+            artifact_name: '*.rpm'
+            asset_name: 'Linux-RPM'
           - os: windows-latest
             artifact_name: '*.exe'
+            asset_name: 'Windows-EXE'
+          - os: windows-latest
+            artifact_name: '*.msi'
+            asset_name: 'Windows-MSI'
 
     steps:
     - uses: actions/checkout@v3
@@ -34,15 +49,13 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-
-
     - name: Build for current platform
       run: npm run dist
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.os }}-build
+        name: ${{ matrix.asset_name }}
         path: dist/${{ matrix.artifact_name }}
 
   release:
@@ -74,4 +87,10 @@ jobs:
       with:
         tag_name: v${{ github.event.inputs.version }}
         files: |
-          *-build/*
+          *-DMG/*
+          *-ZIP/*
+          *-AppImage/*
+          *-DEB/*
+          *-RPM/*
+          *-EXE/*
+          *-MSI/*

@@ -1,6 +1,7 @@
 {
   "name": "mrroot-app",
   "version": "1.0.0",
+  "description": "A simple Electron desktop app",
   "main": "main.js",
   "scripts": {
     "start": "npx electron .",
@@ -14,28 +15,46 @@
     "url": "git+https://github.com/JustablockCode/MrRoot.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": {
+    "name": "Justablock",
+    "email": "bdfd000@gmail.com"
+  },
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/JustablockCode/MrRoot/issues"
   },
   "homepage": "https://github.com/JustablockCode/MrRoot#readme",
-  "description": "A simple Electron desktop app",
   "devDependencies": {
     "electron": "^34.0.0",
     "electron-builder": "^24.6.4"
   },
   "build": {
-    "appId": "com.yourcompany.mrroot",
+    "appId": "com.justablock.mrroot",
     "productName": "MrRoot",
     "mac": {
       "target": ["dmg", "zip"]
     },
     "win": {
-      "target": ["nsis", "zip"]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "msi",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ]
     },
     "linux": {
-      "target": ["deb", "AppImage", "rpm"]
+      "target": ["deb", "AppImage", "rpm"],
+      "category": "Utility"
     },
     "directories": {
       "output": "dist"
@@ -45,4 +64,5 @@
       "allowToChangeInstallationDirectory": true
     }
   }
+
 }

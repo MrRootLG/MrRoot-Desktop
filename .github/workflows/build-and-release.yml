@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Release Desktop App
 
 on:
   workflow_dispatch:
@@ -6,6 +6,12 @@ on:
       version:
         description: 'Version number for this release'
         required: true
+  push:
+    branches:
+      - desktop
+    paths:
+      - '**'
+      - '!.github/workflows/**'  
 
 jobs:
   build:
@@ -24,6 +30,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        ref: desktop  
 
     - name: Setup Node.js
       uses: actions/setup-node@v2
@@ -45,9 +53,12 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'  
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        ref: desktop  
 
     - name: Download all artifacts
       uses: actions/download-artifact@v2
@@ -58,8 +69,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ github.event.inputs.version }}
-        release_name: Release ${{ github.event.inputs.version }}
+        tag_name: desktop-v${{ github.event.inputs.version }}
+        release_name: Desktop App Release ${{ github.event.inputs.version }}
         draft: false
         prerelease: false
 
@@ -68,6 +79,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ github.event.inputs.version }}
+        tag_name: desktop-v${{ github.event.inputs.version }}
         files: |
           *-build/*

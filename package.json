@@ -7,8 +7,8 @@
     "start": "npx electron .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "pack": "npx electron-builder --dir",
-    "dist": "npx electron-builder",
-    "clean": "rm -rf dist build"
+    "dist": "npx electron-builder --win",
+    "clean": "rmdir /s /q dist build"
   },
   "repository": {
     "type": "git",
@@ -31,33 +31,27 @@
   "build": {
     "appId": "com.justablock.mrroot",
     "productName": "MrRoot",
-    "mac": {
-      "icon": "./icons/icon.icns",
-      "target": ["dmg", "zip"]
-    },
-    "win": {
-      "icon": "./icons/icon.ico",
-      "target": [
-        "nsis",
-        "msi"
-      ]
-    },
-    "linux": {
-      "icon": "./icons/icon.png",
-      "target": ["deb", "AppImage", "rpm"],
-      "category": "Utility"
-    },
+    "files": [
+      "**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ],
     "directories": {
       "output": "dist"
     },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+    "win": {
+      "target": ["portable"]
+    },
+    "compression": "maximum",
+    "asar": true
   }
-
-
-
-
-
 }

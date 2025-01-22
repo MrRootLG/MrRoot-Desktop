@@ -4,9 +4,35 @@
     <meta charset="UTF-8">
     <title>MrRoot App</title>
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline';" />
+    <link rel="stylesheet" href="css/styles.css">
 </head>
-<body style="background: white;">
-    <h1>Welcome to MrRoot App</h1>
-    <p>This is a simple Electron desktop application.</p>
+<body>
+    <div id="content">
+        <h1>MrRoot TV Rooting Tool</h1>
+
+        <div id="ip-input-section">
+            <p>Enter your TV's IP address:</p>
+            <input type="text" id="tv-ip" placeholder="192.168.1.100">
+            <button id="connect-btn">Connect</button>
+        </div>
+
+        <div id="tv-info-section" style="display: none;">
+            <h2>TV Information</h2>
+            <p id="webos-version"></p>
+            <p id="root-status"></p>
+        </div>
+
+        <div id="rooting-methods-section" style="display: none;">
+            <h2>Available Rooting Methods</h2>
+            <ul id="method-list"></ul>
+        </div>
+
+        <div id="terminal-section" style="display: none;">
+            <h2>Terminal Output</h2>
+            <pre id="terminal-output"></pre>
+        </div>
+    </div>
+    <script src="js/script.js"></script>
 </body>
 </html>
+

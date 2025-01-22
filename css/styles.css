@@ -1,0 +1,84 @@
+:root {
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --accent: #00ff00;
+}
+
+body {
+    margin: 0;
+    padding: 30px 0 0 0; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+#content {
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin: 16px;
+}
+
+h1, h2 {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 8px;
+}
+
+p {
+    color: var(--text-secondary);
+}
+
+input[type="text"] {
+    background-color: var(--bg-primary);
+    border: 1px solid var(--text-secondary);
+    color: var(--text-primary);
+    padding: 8px;
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+input[type="text"]:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+button {
+    background-color: var(--bg-secondary);
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    padding: 8px 16px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    margin: 4px 2px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+    border-radius: 4px;
+}
+
+button:hover {
+    background-color: var(--accent);
+    color: var(--bg-primary);
+}
+
+#method-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+#method-list li {
+    margin-bottom: 8px;
+}
+
+#terminal-output {
+    background-color: var(--bg-primary);
+    color: var(--accent);
+    padding: 16px;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    font-family: 'Courier New', Courier, monospace;
+}

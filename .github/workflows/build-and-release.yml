@@ -66,31 +66,6 @@ jobs:
             asset_name: 'Windows-MSI-x64'
 
     steps:
-    - name: Update Release Notes - Build Start
-      uses: actions/github-script@v7
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      with:
-        script: |
-          const releaseId = '${{ needs.create_release.outputs.release_id }}';
-          const { data: release } = await github.rest.repos.getRelease({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            release_id: releaseId
-          });
-          const totalBuilds = 4; // Total number of builds (AppImage, DEB, DMG, MSI)
-          let body = release.body + '\n\nBuilding... 0/' + totalBuilds + ' finished\n';
-          body += 'Linux AppImage - Building\n';
-          body += 'Linux DEB - Building\n';
-          body += 'macOS DMG - Building\n';
-          body += 'Windows MSI - Building\n';
-          await github.rest.repos.updateRelease({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            release_id: releaseId,
-            body: body
-          });
-
     - uses: actions/checkout@v4
     - name: Use Node.js
       uses: actions/setup-node@v4
@@ -138,51 +113,14 @@ jobs:
     - name: Upload Release Asset
       id: upload_asset
       if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
-      uses: actions/github-script@v7
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
-        script: |
-          const fs = require('fs');
-          const releaseId = '${{ needs.create_release.outputs.release_id }}';
-          const { data: release } = await github.rest.repos.getRelease({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            release_id: releaseId
-          });
-
-          const assetPath = '${{ steps.find_artifact.outputs.ARTIFACT_PATH }}';
-          const assetName = '${{ matrix.asset_name }}${{ endsWith(steps.find_artifact.outputs.ARTIFACT_PATH, '.AppImage') && '.AppImage' || '' }}';
-
-          const asset = await github.rest.repos.uploadReleaseAsset({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            release_id: releaseId,
-            name: assetName,
-            data: fs.readFileSync(assetPath)
-          });
-
-          let body = release.body;
-          const buildStatus = body.match(/Building... (\d+)\/4 finished/);
-          if (buildStatus) {
-            const finishedBuilds = parseInt(buildStatus[1]) + 1;
-            body = body.replace(`Building... ${buildStatus[1]}/4 finished`, `Building... ${finishedBuilds}/4 finished`);
-          }
-
-          const buildType = {
-            'Linux-AppImage-amd64': 'Linux AppImage',
-            'Linux-DEB-amd64': 'Linux DEB',
-            'macOS-DMG': 'macOS DMG',
-            'Windows-MSI-x64': 'Windows MSI'
-          }['${{ matrix.asset_name }}'];
-
-          body = body.replace(`${buildType} - Building`, `${buildType} - Finished`);
-          await github.rest.repos.updateRelease({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            release_id: releaseId,
-            body: body
-          });
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.find_artifact.outputs.ARTIFACT_PATH }}
+        asset_name: ${{ matrix.asset_name }}${{ endsWith(steps.find_artifact.outputs.ARTIFACT_PATH, '.AppImage') && '.AppImage' || '' }}
+        asset_content_type: application/octet-stream
 
 
     - name: Check Artifact and Upload Status
@@ -223,13 +161,14 @@ jobs:
       with:
         github-token: ${{ secrets.GH_TOKEN }}
         script: |
+          const fs = require('fs');
           const releaseId = '${{ needs.create_release.outputs.release_id }}';
           const { data: release } = await github.rest.repos.getRelease({
             owner: context.repo.owner,
             repo: context.repo.repo,
             release_id: releaseId
           });
-          let body = release.body.replace(/Building... \d+\/4 finished/, 'All builds completed successfully.');
+          const body = release.body + '\n\nBuild completed successfully.';
           await github.rest.repos.updateRelease({
             owner: context.repo.owner,
             repo: context.repo.repo,

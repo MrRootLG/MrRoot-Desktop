@@ -27,17 +27,24 @@ jobs:
       with:
         config-name: release-drafter.yml
         version: ${{ github.event.inputs.version }}
-    - name: Create Release
-      id: create_release
+    - name: Update Release Notes - Build Start
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         tag_name: v${{ github.event.inputs.version }}
         release_name: Desktop App Release ${{ github.event.inputs.version }}
-        body: ${{ steps.generate_notes.outputs.body }}
+        body: |
+          ${{ steps.generate_notes.outputs.body }}
+
+          Building... 0/4 finished
+          Linux AppImage - Building
+          Linux DEB - Building
+          macOS DMG - Building
+          Windows MSI - Building
         draft: false
         prerelease: ${{ github.event.inputs.is_prerelease }}
+
 
   build:
     needs: create_release
@@ -237,28 +244,10 @@ jobs:
     if: failure()
     runs-on: ubuntu-latest
     steps:
-    - name: Delete Release
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.GH_TOKEN }}
-        script: |
-          const releaseId = '${{ needs.create_release.outputs.id }}';
-          if (releaseId) {
-            try {
-              await github.rest.repos.deleteRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: releaseId
-              });
-              console.log('Release deleted successfully');
-            } catch (error) {
-              console.error('Error deleting release:', error);
-            }
-          } else {
-            console.log('No release ID found, skipping release deletion');
-          }
-    - name: Delete Tag
-      run: |
-        git push --delete origin v${{ github.event.inputs.version }} || echo "Failed to delete tag, it may not exist"
+    - name: Delete Release and Tag
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: |
+        gh release delete v${{ github.event.inputs.version }} --yes
+        gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/v${{ github.event.inputs.version }}
+      shell: bash

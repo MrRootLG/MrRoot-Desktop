@@ -29,27 +29,15 @@ jobs:
         version: ${{ github.event.inputs.version }}
     - name: Create Release
       id: create_release
-      uses: actions/github-script@v7
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
-        github-token: ${{ secrets.GH_TOKEN }}
-        script: |
-          try {
-            const { data: release } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: 'v${{ github.event.inputs.version }}',
-              name: 'Desktop App Release ${{ github.event.inputs.version }}',
-              body: '${{ steps.generate_notes.outputs.body }}',
-              draft: false,
-              prerelease: ${{ github.event.inputs.is_prerelease }}
-            });
-            console.log('Release created successfully:', release);
-            return release;
-          } catch (error) {
-            console.error('Error creating release:', error);
-            console.error('Error details:', JSON.stringify(error, null, 2));
-            throw error;
-          }
+        tag_name: v${{ github.event.inputs.version }}
+        release_name: Desktop App Release ${{ github.event.inputs.version }}
+        body: ${{ steps.generate_notes.outputs.body }}
+        draft: false
+        prerelease: ${{ github.event.inputs.is_prerelease }}
 
   build:
     needs: create_release
@@ -254,24 +242,23 @@ jobs:
       with:
         github-token: ${{ secrets.GH_TOKEN }}
         script: |
-          const releaseId = '${{ needs.create_release.outputs.release_id }}';
-          await github.rest.repos.deleteRelease({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            release_id: releaseId
-          });
-    - name: Delete Tag
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.GH_TOKEN }}
-        script: |
-          const tagName = 'v${{ github.event.inputs.version }}';
-          try {
-            await github.rest.git.deleteRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: `tags/${tagName}`
-            });
-          } catch (error) {
-            console.log(`Failed to delete tag: ${error.message}`);
+          const releaseId = '${{ needs.create_release.outputs.id }}';
+          if (releaseId) {
+            try {
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: releaseId
+              });
+              console.log('Release deleted successfully');
+            } catch (error) {
+              console.error('Error deleting release:', error);
+            }
+          } else {
+            console.log('No release ID found, skipping release deletion');
           }
+    - name: Delete Tag
+      run: |
+        git push --delete origin v${{ github.event.inputs.version }} || echo "Failed to delete tag, it may not exist"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

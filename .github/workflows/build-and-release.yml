@@ -80,22 +80,28 @@ jobs:
 
     - name: List dist directory
       run: ls -R dist
+
     - name: Find artifact
       id: find_artifact
       shell: pwsh
       run: |
         Write-Host "Searching for artifact: ${{ matrix.artifact_name }}"
-        $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter "${{ matrix.artifact_name }}" | Select-Object -First 1 -ExpandProperty FullName
+        $artifactPattern = "${{ matrix.artifact_name }}"
+        if ($artifactPattern -eq '*-amd64.AppImage') {
+          $artifactPattern = '*.AppImage'
+        }
+        $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter $artifactPattern | Select-Object -First 1 -ExpandProperty FullName
         if ($ARTIFACT) {
           Write-Host "Artifact found: $ARTIFACT"
-          echo "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
-          echo "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
+          "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
+          "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
         } else {
-          Write-Host "Artifact not found: ${{ matrix.artifact_name }}"
-          echo "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
+          Write-Host "Artifact not found: $artifactPattern"
+          "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
         }
         Write-Host "Contents of dist directory:"
         Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
+
     - name: Upload Release Asset
       id: upload_asset
       if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
@@ -105,8 +111,9 @@ jobs:
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
         asset_path: ${{ steps.find_artifact.outputs.ARTIFACT_PATH }}
-        asset_name: ${{ matrix.asset_name }}${{ endsWith(matrix.artifact_name, '*') && '' || matrix.artifact_name }}
+        asset_name: ${{ matrix.asset_name }}${{ endsWith(steps.find_artifact.outputs.ARTIFACT_PATH, '.AppImage') && '.AppImage' || '' }}
         asset_content_type: application/octet-stream
+
 
     - name: Check Artifact and Upload Status
       shell: pwsh

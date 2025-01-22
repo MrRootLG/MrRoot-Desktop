@@ -29,15 +29,28 @@ jobs:
         version: ${{ github.event.inputs.version }}
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      uses: actions/github-script@v7
       with:
-        tag_name: v${{ github.event.inputs.version }}
-        release_name: Desktop App Release ${{ github.event.inputs.version }}
-        body: ${{ steps.generate_notes.outputs.body }}
-        draft: false
-        prerelease: ${{ github.event.inputs.is_prerelease }}
+        github-token: ${{ secrets.GH_TOKEN }}
+        script: |
+          try {
+            const { data: release } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: 'v${{ github.event.inputs.version }}',
+              name: 'Desktop App Release ${{ github.event.inputs.version }}',
+              body: '${{ steps.generate_notes.outputs.body }}',
+              draft: false,
+              prerelease: ${{ github.event.inputs.is_prerelease }}
+            });
+            console.log('Release created successfully:', release);
+            return release;
+          } catch (error) {
+            console.error('Error creating release:', error);
+            console.error('Error details:', JSON.stringify(error, null, 2));
+            throw error;
+          }
+
   build:
     needs: create_release
     runs-on: ${{ matrix.os }}

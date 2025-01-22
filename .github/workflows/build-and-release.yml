@@ -5,6 +5,11 @@ on:
       version:
         description: 'Version number for this release'
         required: true
+      is_prerelease:
+        description: 'Is this a pre-release?'
+        type: boolean
+        default: false
+        required: true
 
 jobs:
   create_release:
@@ -32,7 +37,7 @@ jobs:
         release_name: Desktop App Release ${{ github.event.inputs.version }}
         body: ${{ steps.generate_notes.outputs.body }}
         draft: false
-        prerelease: false
+        prerelease: ${{ github.event.inputs.is_prerelease }}
   build:
     needs: create_release
     runs-on: ${{ matrix.os }}

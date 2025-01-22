@@ -55,8 +55,8 @@ jobs:
             artifact_name: '*.dmg'
             asset_name: 'macOS-DMG'
           - os: windows-latest
-            artifact_name: '*-x64.msi'
-            asset_name: 'Windows-MSI-x64'
+            artifact_name: '*.msi'
+            asset_name: 'Windows-MSI'
 
     steps:
       - uses: actions/checkout@v4
@@ -71,12 +71,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         shell: pwsh
         run: |
-          if ("${{ runner.os }}" -eq "Linux") {
+          if ("${{ runner.os }}" -eq "Windows") {
+            npm run dist -- --win msi
+            Write-Host "Build completed. Listing contents of dist folder:"
+            Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
+          } elseif ("${{ runner.os }}" -eq "Linux") {
             npm run dist -- --linux AppImage deb
           } elseif ("${{ runner.os }}" -eq "macOS") {
             npm run dist -- --mac dmg
-          } else {
-            npm run dist -- --win msi
           }
 
       - name: List dist directory
@@ -88,10 +90,7 @@ jobs:
         run: |
           Write-Host "Searching for artifact: ${{ matrix.artifact_name }}"
           $artifactPattern = "${{ matrix.artifact_name }}"
-          if ($artifactPattern -eq '*-amd64.AppImage') {
-            $artifactPattern = '*.AppImage'
-          }
-          $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter $artifactPattern | Select-Object -First 1 -ExpandProperty FullName
+          $ARTIFACT = Get-ChildItem -Path . -Recurse -Filter $artifactPattern | Select-Object -First 1 -ExpandProperty FullName
           if ($ARTIFACT) {
             Write-Host "Artifact found: $ARTIFACT"
             "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
@@ -99,9 +98,9 @@ jobs:
           } else {
             Write-Host "Artifact not found: $artifactPattern"
             "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
+            Write-Host "Contents of current directory:"
+            Get-ChildItem -Path . -Recurse | ForEach-Object { Write-Host $_.FullName }
           }
-          Write-Host "Contents of dist directory:"
-          Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
 
       - name: Upload Release Asset
         id: upload_asset

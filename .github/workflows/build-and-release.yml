@@ -27,24 +27,17 @@ jobs:
       with:
         config-name: release-drafter.yml
         version: ${{ github.event.inputs.version }}
-    - name: Update Release Notes - Build Start
+    - name: Create Release
+      id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         tag_name: v${{ github.event.inputs.version }}
         release_name: Desktop App Release ${{ github.event.inputs.version }}
-        body: |
-          ${{ steps.generate_notes.outputs.body }}
-
-          Building... 0/4 finished
-          Linux AppImage - Building
-          Linux DEB - Building
-          macOS DMG - Building
-          Windows MSI - Building
+        body: ${{ steps.generate_notes.outputs.body }}
         draft: false
         prerelease: ${{ github.event.inputs.is_prerelease }}
-
 
   build:
     needs: create_release
@@ -66,75 +59,74 @@ jobs:
             asset_name: 'Windows-MSI-x64'
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-    - name: Install dependencies
-      run: npm ci
-    - name: Build for current platform
-      env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      shell: pwsh
-      run: |
-        if ("${{ runner.os }}" -eq "Linux") {
-          npm run dist -- --linux AppImage deb
-        } elseif ("${{ runner.os }}" -eq "macOS") {
-          npm run dist -- --mac dmg
-        } else {
-          npm run dist -- --win msi
-        }
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build for current platform
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        shell: pwsh
+        run: |
+          if ("${{ runner.os }}" -eq "Linux") {
+            npm run dist -- --linux AppImage deb
+          } elseif ("${{ runner.os }}" -eq "macOS") {
+            npm run dist -- --mac dmg
+          } else {
+            npm run dist -- --win msi
+          }
 
-    - name: List dist directory
-      run: ls -R dist
+      - name: List dist directory
+        run: ls -R dist
 
-    - name: Find artifact
-      id: find_artifact
-      shell: pwsh
-      run: |
-        Write-Host "Searching for artifact: ${{ matrix.artifact_name }}"
-        $artifactPattern = "${{ matrix.artifact_name }}"
-        if ($artifactPattern -eq '*-amd64.AppImage') {
-          $artifactPattern = '*.AppImage'
-        }
-        $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter $artifactPattern | Select-Object -First 1 -ExpandProperty FullName
-        if ($ARTIFACT) {
-          Write-Host "Artifact found: $ARTIFACT"
-          "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
-          "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
-        } else {
-          Write-Host "Artifact not found: $artifactPattern"
-          "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
-        }
-        Write-Host "Contents of dist directory:"
-        Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
+      - name: Find artifact
+        id: find_artifact
+        shell: pwsh
+        run: |
+          Write-Host "Searching for artifact: ${{ matrix.artifact_name }}"
+          $artifactPattern = "${{ matrix.artifact_name }}"
+          if ($artifactPattern -eq '*-amd64.AppImage') {
+            $artifactPattern = '*.AppImage'
+          }
+          $ARTIFACT = Get-ChildItem -Path dist -Recurse -Filter $artifactPattern | Select-Object -First 1 -ExpandProperty FullName
+          if ($ARTIFACT) {
+            Write-Host "Artifact found: $ARTIFACT"
+            "ARTIFACT_PATH=$ARTIFACT" >> $env:GITHUB_OUTPUT
+            "ARTIFACT_FOUND=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "Artifact not found: $artifactPattern"
+            "ARTIFACT_FOUND=false" >> $env:GITHUB_OUTPUT
+          }
+          Write-Host "Contents of dist directory:"
+          Get-ChildItem -Path dist -Recurse | ForEach-Object { Write-Host $_.FullName }
 
-    - name: Upload Release Asset
-      id: upload_asset
-      if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.find_artifact.outputs.ARTIFACT_PATH }}
-        asset_name: ${{ matrix.asset_name }}${{ endsWith(steps.find_artifact.outputs.ARTIFACT_PATH, '.AppImage') && '.AppImage' || '' }}
-        asset_content_type: application/octet-stream
+      - name: Upload Release Asset
+        id: upload_asset
+        if: steps.find_artifact.outputs.ARTIFACT_FOUND == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.find_artifact.outputs.ARTIFACT_PATH }}
+          asset_name: ${{ matrix.asset_name }}${{ endsWith(steps.find_artifact.outputs.ARTIFACT_PATH, '.AppImage') && '.AppImage' || '' }}
+          asset_content_type: application/octet-stream
 
-
-    - name: Check Artifact and Upload Status
-      shell: pwsh
-      run: |
-        if ('${{ steps.find_artifact.outputs.ARTIFACT_FOUND }}' -ne 'true') {
-          Write-Host "Artifact not found: ${{ matrix.artifact_name }}"
-          exit 1
-        }
-        if ('${{ steps.upload_asset.outcome }}' -ne 'success') {
-          Write-Host "Failed to upload asset: ${{ matrix.asset_name }}"
-          exit 1
-        }
-        Write-Host "Asset uploaded successfully: ${{ matrix.asset_name }}"
+      - name: Check Artifact and Upload Status
+        shell: pwsh
+        run: |
+          if ('${{ steps.find_artifact.outputs.ARTIFACT_FOUND }}' -ne 'true') {
+            Write-Host "Artifact not found: ${{ matrix.artifact_name }}"
+            exit 1
+          }
+          if ('${{ steps.upload_asset.outcome }}' -ne 'success') {
+            Write-Host "Failed to upload asset: ${{ matrix.asset_name }}"
+            exit 1
+          }
+          Write-Host "Asset uploaded successfully: ${{ matrix.asset_name }}"
   update_release:
     needs: [create_release, build]
     if: success()
@@ -175,18 +167,35 @@ jobs:
             release_id: releaseId,
             body: body
           });
-
-
-
+          
   delete_release_on_failure:
     needs: [create_release, build]
     if: failure()
     runs-on: ubuntu-latest
     steps:
-    - name: Delete Release and Tag
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      run: |
-        gh release delete v${{ github.event.inputs.version }} --yes
-        gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/v${{ github.event.inputs.version }}
-      shell: bash
+    - name: Delete Release
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GH_TOKEN }}
+        script: |
+          const releaseId = '${{ needs.create_release.outputs.release_id }}';
+          await github.rest.repos.deleteRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            release_id: releaseId
+          });
+    - name: Delete Tag
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GH_TOKEN }}
+        script: |
+          const tagName = 'v${{ github.event.inputs.version }}';
+          try {
+            await github.rest.git.deleteRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `tags/${tagName}`
+            });
+          } catch (error) {
+            console.log(`Failed to delete tag: ${error.message}`);
+          }
